@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS articles (
   author_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   published BOOLEAN DEFAULT FALSE,
   published_at TIMESTAMP WITH TIME ZONE,
+  view_count INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -32,11 +33,12 @@ CREATE TABLE IF NOT EXISTS article_likes (
   UNIQUE(article_id, user_id)
 );
 
--- Create comments table
+-- Create comments table with nested replies support
 CREATE TABLE IF NOT EXISTS article_comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
   user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  parent_id UUID REFERENCES article_comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -81,6 +83,16 @@ CREATE POLICY "Anyone can view comments" ON article_comments FOR SELECT USING (t
 CREATE POLICY "Users can create comments" ON article_comments FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own comments" ON article_comments FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own comments" ON article_comments FOR DELETE USING (auth.uid() = user_id);
+
+-- Function to increment article view count
+CREATE OR REPLACE FUNCTION public.increment_view_count(article_uuid UUID)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE articles 
+  SET view_count = COALESCE(view_count, 0) + 1 
+  WHERE id = article_uuid;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Notifications policies
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);

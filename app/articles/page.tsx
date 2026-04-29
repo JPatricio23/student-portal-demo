@@ -12,11 +12,13 @@ interface Article {
   published: boolean
   published_at: string | null
   created_at: string
+  view_count: number
   author: { email: string } | null
 }
 
 export default function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([])
+  const [topArticles, setTopArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -40,6 +42,23 @@ export default function ArticlesPage() {
     }
 
     await fetchArticles(user)
+    await fetchTopArticles()
+  }
+
+  const fetchTopArticles = async () => {
+    const { data, error } = await supabase
+      .from('articles')
+      .select(`
+        *,
+        author:profiles(email)
+      `)
+      .eq('published', true)
+      .order('view_count', { ascending: false })
+      .limit(5)
+
+    if (!error && data) {
+      setTopArticles(data as Article[])
+    }
   }
 
   const fetchArticles = async (currentUser: any) => {
@@ -120,6 +139,35 @@ export default function ArticlesPage() {
             </Link>
           )}
         </div>
+
+        {/* Top 5 Most Viewed Articles */}
+        {topArticles.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-6">🔥 Top 5 Most Viewed Articles</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {topArticles.map((article, index) => (
+                <Link
+                  key={article.id}
+                  href={`/articles/${article.id}`}
+                  className="block border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl font-bold text-blue-600">#{index + 1}</span>
+                    <span className="flex items-center gap-1 text-sm text-gray-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                      </svg>
+                      {article.view_count || 0}
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-lg">{article.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{article.excerpt}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {articles.length === 0 ? (
           <p className="text-gray-500">No articles found.</p>

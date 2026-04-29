@@ -8,6 +8,7 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [notificationCount, setNotificationCount] = useState(0)
 
   useEffect(() => {
     checkUser()
@@ -25,6 +26,17 @@ export default function Navbar() {
         .single()
 
       setIsAdmin(profile?.role === 'admin')
+      
+      // Fetch notification count
+      if (profile?.role === 'admin') {
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('read', false)
+        
+        setNotificationCount(count || 0)
+      }
     }
     setLoading(false)
   }
@@ -68,9 +80,14 @@ export default function Navbar() {
               {isAdmin && (
                 <Link
                   href="/notifications"
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium relative"
                 >
                   Notifications
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {notificationCount > 9 ? '9+' : notificationCount}
+                    </span>
+                  )}
                 </Link>
               )}
             </div>

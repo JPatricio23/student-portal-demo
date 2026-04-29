@@ -135,3 +135,36 @@ export async function DELETE(
 
   return NextResponse.json({ success: true })
 }
+
+// PATCH to increment view count
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const body = await request.json()
+
+  // Increment view count
+  if (body.action === 'incrementView') {
+    const { data: article } = await supabase
+      .from('articles')
+      .select('view_count')
+      .eq('id', id)
+      .single()
+
+    const newCount = (article?.view_count || 0) + 1
+
+    const { error } = await supabase
+      .from('articles')
+      .update({ view_count: newCount })
+      .eq('id', id)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ view_count: newCount })
+  }
+
+  return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+}
